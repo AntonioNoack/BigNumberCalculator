@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">Calculator</string>
+    <string name="left_arrow"><![CDATA[<-]]></string>
+    <string name="enter">=</string>
+    <string name="modulo">%</string>
+    <string name="divide">/</string>
+    <string name="times">*</string>
+    <string name="minus">-</string>
+    <string name="dot">.</string>
+    <string name="load_desc">Hold values to delete them</string>
+    <string name="load_title">Load Value</string>
+    <string name="precision_title">Select Precision</string>
+    <string name="precision_desc">Set the used precision in decimal digits for all calculations. Higher is better, but also slower.</string>
+    <string name="cancel">Cancel</string>
+    <string name="set">Set</string>
+</resources>
