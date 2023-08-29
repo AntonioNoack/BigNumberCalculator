@@ -2,7 +2,6 @@ package me.antonionoack.calculator
 
 import android.annotation.SuppressLint
 import android.widget.TextView
-import androidx.core.math.MathUtils.clamp
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.math.MathContext
@@ -73,8 +72,8 @@ class BigDec(dec: BigDecimal, val state: String? = null) {
         val minExpInput: BigDecimal = maxExpInput.negate()
         val log2_10 = log2(10.0)
         val log2_10Inv = 1.0 / log2_10
-        val smallValue = BigDecimal(1e-18)
-        val largeValue = BigDecimal(1e18)
+        var smallValue = BigDecimal(BigInteger.ONE, +18)
+        var largeValue = BigDecimal(BigInteger.ONE, -18)
     }
 
     override fun toString(): String {
@@ -575,6 +574,10 @@ class BigDec(dec: BigDecimal, val state: String? = null) {
                     Pair(g0, g1)
                 })
         }
+    }
+
+    private fun clamp(value: Double, min: Double, max: Double): Double {
+        return if(value < min) min else if(value < max) value else max
     }
 
     private fun toDouble(): Double {

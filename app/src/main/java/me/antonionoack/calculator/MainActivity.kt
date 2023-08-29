@@ -19,12 +19,15 @@ import me.antonionoack.calculator.BigDec.Companion.NaN
 import me.antonionoack.calculator.BigDec.Companion.ONE
 import me.antonionoack.calculator.BigDec.Companion.PI
 import me.antonionoack.calculator.BigDec.Companion.div100
+import me.antonionoack.calculator.BigDec.Companion.largeValue
 import me.antonionoack.calculator.BigDec.Companion.negOne2
 import me.antonionoack.calculator.BigDec.Companion.negativeInfinity
 import me.antonionoack.calculator.BigDec.Companion.positiveInfinity
+import me.antonionoack.calculator.BigDec.Companion.smallValue
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.math.BigDecimal
+import java.math.BigInteger
 import java.math.MathContext
 import java.math.RoundingMode
 import java.util.*
@@ -66,9 +69,14 @@ class MainActivity : AppCompatActivity() {
             .split(separator1)
             .filter { it.isNotEmpty() }
             .map { parseSymbol(it) })
-        val precision = preferences.getInt("precision", -1)
+        val precision = preferences.getInt("precision", 0)
         if (precision > 0) {
             mathContext = MathContext(precision, mathContext.roundingMode)
+        }
+        val precision1 = preferences.getInt("scientificDigits", 0)
+        if (precision1 > 0) {
+            smallValue = BigDecimal(BigInteger.ONE, +precision1)
+            largeValue = BigDecimal(BigInteger.ONE, -precision1)
         }
     }
 
@@ -79,6 +87,7 @@ class MainActivity : AppCompatActivity() {
             .putString("text", text)
             .putString("chain", chain0)
             .putInt("precision", mathContext.precision)
+            .putInt("scientificDigits", smallValue.scale())
             .apply()
     }
 
@@ -246,10 +255,12 @@ class MainActivity : AppCompatActivity() {
                                     else text += "-"
                                 } else op("-")
                             }
+
                             ".", "," -> synchronized(chain) {
                                 if (chain.lastOrNull() is BigDec) chain.clear()
                                 if ('.' !in text) text += "."
                             }
+
                             "*10^" -> if ('e' !in text) {
                                 synchronized(chain) {
                                     if (chain.lastOrNull() is BigDec) chain.clear()
@@ -258,6 +269,7 @@ class MainActivity : AppCompatActivity() {
                                     text += "e"
                                 }
                             }
+
                             "=" -> thread {
                                 setEnabled(false)
                                 if (chain.size == 1 && text.isEmpty() && chain[0] != "rand") {
@@ -279,26 +291,31 @@ class MainActivity : AppCompatActivity() {
                                 }
                                 setEnabled(true)
                             }
+
                             "<-" -> if (text.isNotEmpty()) {
                                 text = text.substring(0, text.length - 1)
                             } else synchronized(chain) {
                                 if (chain.isNotEmpty())
                                     chain.removeAt(chain.lastIndex)
                             }
+
                             "(" -> op("(", false)
                             ")" -> synchronized(chain) {    // only allow ), if there is enough (
                                 if (chain.count { it == "(" } > chain.count { it == ")" }) {
                                     op(")", false)
                                 }
                             }
+
                             "e" -> synchronized(chain) {
                                 text = ""
                                 chain.add(E)
                             }
+
                             "pi" -> synchronized(chain) {
                                 text = ""
                                 chain.add(PI)
                             }
+
                             "sqrt",
                             "sin", "asin", "sinh", "asinh",
                             "cos", "acos", "cosh", "acosh",
@@ -308,6 +325,7 @@ class MainActivity : AppCompatActivity() {
                             "rand" -> {
                                 op(cmd, false)
                             }
+
                             "load" -> {
                                 var dialog: AlertDialog? = null
                                 val alert = AlertDialog.Builder(this)
@@ -356,6 +374,7 @@ class MainActivity : AppCompatActivity() {
                                 dialog = alert.show()
                                 dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
                             }
+
                             "store" -> {
                                 eval()
                                 if (chain.isNotEmpty()) {
@@ -373,6 +392,7 @@ class MainActivity : AppCompatActivity() {
                                     toast("Stored value", false)
                                 } else toast("Cannot store nothing", false)
                             }
+
                             "prec" -> {
 
                                 var dialog: AlertDialog? = null
@@ -384,31 +404,49 @@ class MainActivity : AppCompatActivity() {
                                     null
                                 ) as LinearLayout
 
-                                val bar = list.findViewById<SeekBar>(R.id.seekBar)
+                                val bar0 = list.findViewById<SeekBar>(R.id.seekBar0)
+                                val bar1 = list.findViewById<SeekBar>(R.id.seekBar1)
                                 val minValue = 1
                                 val maxValue = 500
 
-                                val tv = list.findViewById<TextView>(R.id.precisionText)
-                                tv.text = if (mathContext.precision == 1) "1 digit"
-                                else "${mathContext.precision} digits"
+                                val tv0 = list.findViewById<TextView>(R.id.precisionText0)
+                                tv0.text = formatDigits(mathContext.precision)
 
-                                bar.max = maxValue - minValue
-                                bar.progress = mathContext.precision - minValue
-                                bar.setOnSeekBarChangeListener(object : OnSeekBarChangeListener {
+                                val tv1 = list.findViewById<TextView>(R.id.precisionText1)
+                                tv1.text = formatDigits(smallValue.scale())
+
+                                bar0.max = maxValue - minValue
+                                bar0.progress = mathContext.precision - minValue
+                                bar0.setOnSeekBarChangeListener(object : OnSeekBarChangeListener {
 
                                     override fun onProgressChanged(
                                         seekBar: SeekBar?,
                                         progress: Int,
                                         fromUser: Boolean
                                     ) {
-                                        val precision = minValue + bar.progress
-                                        tv.text = if (precision == 1) "1 digit"
-                                        else "$precision digits"
+                                        val precision = minValue + progress
+                                        tv0.text = formatDigits(precision)
                                     }
 
                                     override fun onStartTrackingTouch(seekBar: SeekBar?) {}
                                     override fun onStopTrackingTouch(seekBar: SeekBar?) {}
 
+                                })
+
+                                bar1.max = maxValue - minValue
+                                bar1.progress = smallValue.scale() - minValue
+                                bar1.setOnSeekBarChangeListener(object : OnSeekBarChangeListener {
+                                    override fun onProgressChanged(
+                                        seekBar: SeekBar?,
+                                        progress: Int,
+                                        fromUser: Boolean
+                                    ) {
+                                        val precision = minValue + progress
+                                        tv1.text = formatDigits(precision)
+                                    }
+
+                                    override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                                    override fun onStopTrackingTouch(seekBar: SeekBar?) {}
                                 })
 
                                 alert.setView(list)
@@ -417,9 +455,14 @@ class MainActivity : AppCompatActivity() {
                                     dialog?.dismiss()
                                 }
                                 list.findViewById<TextView>(R.id.ok).setOnClickListener {
-                                    val precision = minValue + bar.progress
-                                    mathContext =
-                                        MathContext(precision, mathContext.roundingMode)
+                                    val precision0 = minValue + bar0.progress
+                                    mathContext = MathContext(precision0, mathContext.roundingMode)
+                                    val precision1 = minValue + bar1.progress
+                                    if (precision1 != smallValue.scale()) {
+                                        smallValue = BigDecimal(BigInteger.ONE, +precision1)
+                                        largeValue = BigDecimal(BigInteger.ONE, -precision1)
+                                        showNumber() // update number in case precision was changed
+                                    }
                                     storeState()
                                     dialog?.dismiss()
                                 }
@@ -428,6 +471,7 @@ class MainActivity : AppCompatActivity() {
                                 dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
 
                             }
+
                             else -> {
                                 println("todo: implement $cmd")
                             }
@@ -437,6 +481,11 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun formatDigits(digits: Int): String {
+        return if (digits == 1) "1 digit"
+        else "$digits digits"
     }
 
     private fun applyFunc(name: String, value: BigDec): BigDec {
